@@ -1,3 +1,0 @@
-0000000000000000000000000000000000000000 b3f5ef0384876b332d724e41b0171fef91404565 Anton Almishev <antonalmishev@abv.bg> 1795422858 +0200	clone: from https://github.com/slashcode-projects/support-request-backend.git
-b3f5ef0384876b332d724e41b0171fef91404565 8e9094141e1c4dcf8a3de47a4b4ccfef13753bdf Anton Almishev <antonalmishev@abv.bg> 1795423083 +0200	checkout: moving from main to feature/ticket-rest-apis
-8e9094141e1c4dcf8a3de47a4b4ccfef13753bdf b89bf595c9a5f02af02bc9d257ecd6d29afa080b Anton Almishev <antonalmishev@abv.bg> 1795424517 +0200	checkout: moving from feature/ticket-rest-apis to spring-security/security-config
