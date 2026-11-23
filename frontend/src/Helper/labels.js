@@ -2,6 +2,12 @@ export const ROLE_LABELS = {
   EMPLOYEE: 'Служител',
   SUPPORT: 'Поддръжка',
   ADMIN: 'Админ',
+  SUPER_ADMIN: 'Супер администратор',
+}
+
+export const COMPANY_STATUS_LABELS = {
+  ACTIVE: 'Активна',
+  INACTIVE: 'Неактивна',
 }
 
 export const USER_STATUS_LABELS = {

@@ -3,13 +3,13 @@ import Badge from 'react-bootstrap/Badge'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import Table from 'react-bootstrap/Table'
-import { api } from '../api'
+import { api } from '../Helper/api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
 import MobileSort from '../components/MobileSort'
 import SortHeader from '../components/SortHeader'
 import { LazySentinel, Pager, pageQuery, useLazyPage } from '../paging'
-import { nextSort } from '../sort'
+import { nextSort } from '../Helper/sort'
 
 export default function CategoriesPage() {
   const { credentials } = useAuth()

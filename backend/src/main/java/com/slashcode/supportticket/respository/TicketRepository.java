@@ -17,6 +17,16 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>{
 
 	Page<Ticket> findByCreatedById(Long userId, Pageable pageable);
 
+	List<Ticket> findByCompanyId(Long companyId);
+
+	Page<Ticket> findByCompanyId(Long companyId, Pageable pageable);
+
+	Page<Ticket> findByCreatedByIdAndCompanyId(Long userId, Long companyId, Pageable pageable);
+
+	List<Ticket> findByCreatedByIdAndCompanyId(Long userId, Long companyId);
+
+	long countByCompanyId(Long companyId);
+
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("delete from Ticket t where t.createdBy.id = :userId")
 	void deleteByCreatedById(@Param("userId") Long userId);
@@ -33,4 +43,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>{
 			where t.assignedTo.id = :userId
 			""")
 	void clearAssignee(@Param("userId") Long userId);
+
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("delete from Ticket t where t.company.id = :companyId")
+	void deleteByCompanyId(@Param("companyId") Long companyId);
 }

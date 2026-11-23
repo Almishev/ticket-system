@@ -76,14 +76,17 @@ public class TicketServiceImpl implements TicketService{
 		User current = ticketAccess.currentUser();
 		Long creatorId = ticketAccess.isEmployee(current) ? current.getId() : request.getCreatedById();
 		User user = findUserOrThrow(creatorId);
+		ticketAccess.requireSameCompany(user.getCompany(), "User not found with id " + creatorId);
 		Category category = findCategoryOrThrow(request.getCategoryId());
+		ticketAccess.requireSameCompany(category.getCompany(), "Category not found with id : " + request.getCategoryId());
 		
 		if(!category.getActive()) {
 			throw new IllegalArgumentException("Category is inactive");
 		}
 		
 		Ticket ticket = ticketMapper.toEntity(request, category, user);
-		ticket.setTicketNumber(generateTicketNumber());
+		ticket.setCompany(user.getCompany());
+		ticket.setTicketNumber(generateTicketNumber(user.getCompany().getId()));
 		Ticket savedTicket = ticketRepository.save(ticket);
 		return ticketMapper.toResponse(savedTicket);
 	}
@@ -102,13 +105,14 @@ public class TicketServiceImpl implements TicketService{
 	@Override
 	public List<TicketResponse> getAllTickets() {
 		User current = ticketAccess.currentUser();
+		Long companyId = ticketAccess.requireCompany().getId();
 		if (ticketAccess.isEmployee(current)) {
-			return ticketRepository.findByCreatedById(current.getId())
+			return ticketRepository.findByCreatedByIdAndCompanyId(current.getId(), companyId)
 					.stream()
 					.map(ticketMapper::toResponse)
 					.toList();
 		}
-		return ticketRepository.findAll()
+		return ticketRepository.findByCompanyId(companyId)
 			.stream()
 			.map(ticketMapper::toResponse)
 			.toList();			
@@ -118,10 +122,13 @@ public class TicketServiceImpl implements TicketService{
 	public PageResponse<TicketResponse> getTicketPage(int page, int size, String sort, String direction) {
 		Pageable pageable = Paging.of(page, size, sort, direction, TICKET_SORT, "createdAt");
 		User current = ticketAccess.currentUser();
+		Long companyId = ticketAccess.requireCompany().getId();
 		if (ticketAccess.isEmployee(current)) {
-			return Paging.toResponse(ticketRepository.findByCreatedById(current.getId(), pageable), ticketMapper::toResponse);
+			return Paging.toResponse(
+					ticketRepository.findByCreatedByIdAndCompanyId(current.getId(), companyId, pageable),
+					ticketMapper::toResponse);
 		}
-		return Paging.toResponse(ticketRepository.findAll(pageable), ticketMapper::toResponse);
+		return Paging.toResponse(ticketRepository.findByCompanyId(companyId, pageable), ticketMapper::toResponse);
 	}
 	
 	@Override
@@ -135,8 +142,10 @@ public class TicketServiceImpl implements TicketService{
 	@Override
 	public List<TicketResponse> getMyTickets(Long userId) {
 		ticketAccess.requireOwnQuery(userId);
-		findUserOrThrow(userId);
-		return ticketRepository.findByCreatedById(userId)
+		User owner = findUserOrThrow(userId);
+		ticketAccess.requireSameCompany(owner.getCompany(), "User not found with id " + userId);
+		Long companyId = owner.getCompany().getId();
+		return ticketRepository.findByCreatedByIdAndCompanyId(userId, companyId)
 				.stream()
 				.map(ticketMapper::toResponse)
 				.toList();
@@ -145,9 +154,12 @@ public class TicketServiceImpl implements TicketService{
 	@Override
 	public PageResponse<TicketResponse> getMyTicketPage(Long userId, int page, int size, String sort, String direction) {
 		ticketAccess.requireOwnQuery(userId);
-		findUserOrThrow(userId);
+		User owner = findUserOrThrow(userId);
+		ticketAccess.requireSameCompany(owner.getCompany(), "User not found with id " + userId);
 		Pageable pageable = Paging.of(page, size, sort, direction, TICKET_SORT, "createdAt");
-		return Paging.toResponse(ticketRepository.findByCreatedById(userId, pageable), ticketMapper::toResponse);
+		return Paging.toResponse(
+				ticketRepository.findByCreatedByIdAndCompanyId(userId, owner.getCompany().getId(), pageable),
+				ticketMapper::toResponse);
 	}
 	
 	@Override
@@ -170,6 +182,7 @@ public class TicketServiceImpl implements TicketService{
 		ticketAccess.requireVisible(ticket);
 		
 		User supportUser = findUserOrThrow(request.getSupportUserId());
+		ticketAccess.requireSameCompany(supportUser.getCompany(), "User not found with id " + request.getSupportUserId());
 		
 		if(supportUser.getRole() != UserRole.SUPPORT) {
 			throw new InvalidTicketAssignmentException("Ticket can only be assigned to a support user");
@@ -203,8 +216,8 @@ public class TicketServiceImpl implements TicketService{
 		ticketRepository.deleteById(id);
 	}
 
-	private String generateTicketNumber() {
-		Long count = ticketRepository.count();
+	private String generateTicketNumber(Long companyId) {
+		long count = ticketRepository.countByCompanyId(companyId);
 		return "INC-"+(1000001+count);
 	}
 

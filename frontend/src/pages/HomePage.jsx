@@ -9,15 +9,18 @@ export default function HomePage() {
     <section className="hero">
       <div className="hero-copy">
         <p className="hero-kicker">За екипа</p>
-        <h1>Хелпдеск</h1>
+        <h1>
+          <span className="logo-mark" aria-hidden="true" />
+          Хелпдеск
+        </h1>
         <p className="hero-lead">Система за заявки към поддръжката</p>
         <p className="hero-text">
           Служителят описва проблема. Поддръжката поема заявката и я води до решение.
         </p>
         <div className="hero-actions">
           {ready && user ? (
-            <Button as={Link} to="/tickets">
-              Към заявките
+            <Button as={Link} to={user.role === 'SUPER_ADMIN' ? '/companies' : '/tickets'}>
+              {user.role === 'SUPER_ADMIN' ? 'Към фирмите' : 'Към заявките'}
             </Button>
           ) : (
             <Button as={Link} to="/login">

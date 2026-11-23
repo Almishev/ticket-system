@@ -14,6 +14,7 @@ public class UserResponse {
 	private UserRole role;
 	private UserStatus status;
 	private String department;
+	private String companyName;
 	private LocalDateTime createdAt;
 	private LocalDateTime updatedAt;
 	
@@ -58,6 +59,12 @@ public class UserResponse {
 	}
 	public void setDepartment(String department) {
 		this.department = department;
+	}
+	public String getCompanyName() {
+		return companyName;
+	}
+	public void setCompanyName(String companyName) {
+		this.companyName = companyName;
 	}
 	public LocalDateTime getCreatedAt() {
 		return createdAt;

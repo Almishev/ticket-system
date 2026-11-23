@@ -22,6 +22,9 @@ public class UserMapper {
 		response.setRole(user.getRole());
 		response.setStatus(user.getStatus());
 		response.setDepartment(user.getDepartment());
+		if (user.getCompany() != null) {
+			response.setCompanyName(user.getCompany().getName());
+		}
 		response.setCreatedAt(user.getCreatedAt());
 		response.setUpdatedAt(user.getUpdatedAt());
 		return response;

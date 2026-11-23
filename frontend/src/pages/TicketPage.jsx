@@ -5,7 +5,7 @@ import Button from 'react-bootstrap/Button'
 import Card from 'react-bootstrap/Card'
 import Form from 'react-bootstrap/Form'
 import Modal from 'react-bootstrap/Modal'
-import { api } from '../api'
+import { api } from '../Helper/api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
 import {
@@ -15,8 +15,8 @@ import {
   VISIBILITY_LABELS,
   formatDate,
   statusBadge,
-} from '../labels'
-import { nextSort, sortRows } from '../sort'
+} from '../Helper/labels'
+import { nextSort, sortRows } from '../Helper/sort'
 
 export default function TicketPage() {
   const { id } = useParams()
@@ -127,7 +127,7 @@ export default function TicketPage() {
         )}
       </div>
 
-      <p className="bg-white border rounded p-3">{ticket.description}</p>
+      {ticket.description && <p className="bg-white border rounded p-3">{ticket.description}</p>}
 
       <div className="ticket-meta mb-4">
         <div>

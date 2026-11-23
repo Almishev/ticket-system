@@ -11,17 +11,27 @@ export default function PublicLayout() {
     <div className="app-shell">
       <header className="app-header public-header">
         <NavLink to="/" end className="brand">
+          <span className="logo-mark" aria-hidden="true" />
           {productName}
         </NavLink>
         <nav className="public-nav">
-          {user ? <NavLink to="/tickets">Заявки</NavLink> : <NavLink to="/login">Вход</NavLink>}
+          {user ? (
+            <NavLink to={user.role === 'SUPER_ADMIN' ? '/companies' : '/tickets'}>
+              {user.role === 'SUPER_ADMIN' ? 'Фирми' : 'Заявки'}
+            </NavLink>
+          ) : (
+            <NavLink to="/login">Вход</NavLink>
+          )}
         </nav>
       </header>
       <main className="app-main public-main">
         <Outlet />
       </main>
       <footer className="app-footer">
-        <span>{productName}</span>
+        <span className="brand footer-brand">
+          <span className="logo-mark" aria-hidden="true" />
+          {productName}
+        </span>
         <span>© {year}</span>
       </footer>
     </div>

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { api } from './api'
+import { api } from './Helper/api'
 
 const AuthContext = createContext(null)
 const STORAGE_KEY = 'ticket-auth'

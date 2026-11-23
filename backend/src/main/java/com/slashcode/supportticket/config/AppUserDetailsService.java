@@ -5,6 +5,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import com.slashcode.supportticket.enums.CompanyStatus;
 import com.slashcode.supportticket.enums.UserStatus;
 import com.slashcode.supportticket.model.User;
 import com.slashcode.supportticket.respository.UserRepository;
@@ -20,14 +21,16 @@ public class AppUserDetailsService implements UserDetailsService {
 
 	@Override
 	public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-		User user = userRepository.findByEmail(email)
+		User user = userRepository.findByEmailWithCompany(email)
 				.orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+		boolean companyBlocked = user.getCompany() != null && user.getCompany().getStatus() != CompanyStatus.ACTIVE;
 
 		return org.springframework.security.core.userdetails.User
 				.withUsername(user.getEmail())
 				.password(user.getPassword())
 				.roles(user.getRole().name())
-				.disabled(user.getStatus() != UserStatus.ACTIVE)
+				.disabled(user.getStatus() != UserStatus.ACTIVE || companyBlocked)
 				.build();
 	}
 }

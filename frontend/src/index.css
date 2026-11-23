@@ -23,11 +23,30 @@ body {
 
 .app-header h1,
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
   font-size: 24px;
   font-weight: 600;
   color: #fff;
   text-decoration: none;
+}
+
+.logo-mark {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  background: currentColor;
+  -webkit-mask: url(/support_icon.svg) center / contain no-repeat;
+  mask: url(/support_icon.svg) center / contain no-repeat;
+}
+
+.footer-brand {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  gap: 8px;
 }
 
 .public-nav {
@@ -87,6 +106,9 @@ body {
 }
 
 .hero h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.28em;
   margin: 0;
   color: #2c3e50;
   font-size: clamp(32px, 5vw, 64px);
@@ -269,7 +291,7 @@ body {
   }
 
   .app-header-user span {
-    max-width: 48vw;
+    max-width: 58vw;
   }
 
   .app-main {

@@ -5,14 +5,14 @@ import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import Modal from 'react-bootstrap/Modal'
 import Table from 'react-bootstrap/Table'
-import { api } from '../api'
+import { api } from '../Helper/api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
 import MobileSort from '../components/MobileSort'
 import SortHeader from '../components/SortHeader'
-import { PRIORITY_LABELS, TICKET_STATUS_LABELS, formatDate, statusBadge } from '../labels'
+import { PRIORITY_LABELS, TICKET_STATUS_LABELS, formatDate, statusBadge } from '../Helper/labels'
 import { LazySentinel, Pager, pageQuery, useLazyPage } from '../paging'
-import { nextSort } from '../sort'
+import { nextSort } from '../Helper/sort'
 
 const emptyTicket = {
   title: '',
@@ -263,7 +263,6 @@ export default function TicketsPage() {
                 value={form.description}
                 maxLength={2000}
                 onChange={(event) => updateForm('description', event.target.value)}
-                required
               />
             </Form.Group>
             <Form.Group className="mb-3">

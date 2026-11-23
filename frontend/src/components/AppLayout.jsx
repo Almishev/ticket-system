@@ -1,6 +1,6 @@
-import { NavLink, Navigate, Outlet } from 'react-router-dom'
+import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth'
-import { ROLE_LABELS } from '../labels'
+import { ROLE_LABELS } from '../Helper/labels'
 
 const productName = 'Хелпдеск'
 
@@ -8,26 +8,41 @@ const ROLE_NAMES = {
   ADMIN: 'Администратор',
   SUPPORT: 'Поддръжка',
   EMPLOYEE: 'Служител',
+  SUPER_ADMIN: 'Супер администратор',
 }
 
 export default function AppLayout() {
   const { user, logout } = useAuth()
+  const location = useLocation()
   const year = new Date().getFullYear()
-  const links = [
-    { to: '/tickets', label: 'Заявки', icon: '🎫' },
-    { to: '/categories', label: 'Категории', icon: '🏷️' },
-  ]
-  if (user?.role === 'ADMIN' || user?.role === 'SUPPORT') {
+  const isSuper = user?.role === 'SUPER_ADMIN'
+  if (isSuper && location.pathname !== '/companies') {
+    return <Navigate to="/companies" replace />
+  }
+  if (!isSuper && location.pathname.startsWith('/companies')) {
+    return <Navigate to="/tickets" replace />
+  }
+  const links = isSuper
+    ? [{ to: '/companies', label: 'Фирми', icon: '🏢' }]
+    : [
+        { to: '/tickets', label: 'Заявки', icon: '🎫' },
+        { to: '/categories', label: 'Категории', icon: '🏷️' },
+      ]
+  if (!isSuper && (user?.role === 'ADMIN' || user?.role === 'SUPPORT')) {
     links.push({ to: '/users', label: 'Потребители', icon: '👤' })
   }
 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>{productName}</h1>
+        <h1>
+          <span className="logo-mark" aria-hidden="true" />
+          {productName}
+        </h1>
         <div className="app-header-user">
           <span>
-            {user?.firstName} {user?.lastName} ({ROLE_NAMES[user?.role] || ROLE_LABELS[user?.role]})
+            {user?.firstName} {user?.lastName}
+            {user?.companyName ? ` · ${user.companyName}` : ''} ({ROLE_NAMES[user?.role] || ROLE_LABELS[user?.role]})
           </span>
           <button type="button" className="btn-logout" onClick={logout}>
             Изход
@@ -50,7 +65,10 @@ export default function AppLayout() {
         </main>
       </div>
       <footer className="app-footer">
-        <span>{productName}</span>
+        <span className="brand footer-brand">
+          <span className="logo-mark" aria-hidden="true" />
+          {productName}
+        </span>
         <span>© {year}</span>
       </footer>
     </div>

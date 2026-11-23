@@ -5,14 +5,15 @@ import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import Modal from 'react-bootstrap/Modal'
 import Table from 'react-bootstrap/Table'
-import { api } from '../api'
+import { api } from '../Helper/api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
 import MobileSort from '../components/MobileSort'
 import SortHeader from '../components/SortHeader'
-import { ROLE_LABELS, USER_STATUS_LABELS, formatDate, statusBadge } from '../labels'
+import { ROLE_LABELS, USER_STATUS_LABELS, formatDate, statusBadge } from '../Helper/labels'
+import { isValidPassword, PASSWORD_MESSAGE } from '../Helper/password'
 import { LazySentinel, Pager, pageQuery, useLazyPage } from '../paging'
-import { nextSort } from '../sort'
+import { nextSort } from '../Helper/sort'
 
 const emptyUser = {
   firstName: '',
@@ -31,6 +32,7 @@ export default function UsersPage() {
   const [form, setForm] = useState(emptyUser)
   const [editing, setEditing] = useState(null)
   const [personToDelete, setPersonToDelete] = useState(null)
+  const [passwordError, setPasswordError] = useState('')
   const [sort, setSort] = useState({ key: 'name', type: 'text', direction: 'asc' })
   const {
     items: sortedUsers,
@@ -259,6 +261,11 @@ export default function UsersPage() {
         <Form
           onSubmit={(event) => {
             event.preventDefault()
+            if (!isValidPassword(form.password)) {
+              setPasswordError(PASSWORD_MESSAGE)
+              toast.error(PASSWORD_MESSAGE)
+              return
+            }
             run(async () => {
               await api('/users', {
                 method: 'POST',
@@ -280,7 +287,13 @@ export default function UsersPage() {
             <Modal.Title>Нов потребител</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <UserFields form={form} updateForm={updateForm} includePassword />
+            <UserFields
+              form={form}
+              updateForm={updateForm}
+              includePassword
+              passwordError={passwordError}
+              onPasswordChange={() => setPasswordError('')}
+            />
           </Modal.Body>
           <Modal.Footer>
             <Button variant="outline-secondary" onClick={() => setShowCreate(false)}>
@@ -334,7 +347,7 @@ export default function UsersPage() {
   )
 }
 
-function UserFields({ form, updateForm, includePassword = false }) {
+function UserFields({ form, updateForm, includePassword = false, passwordError, onPasswordChange }) {
   return (
     <>
       <Form.Group className="mb-3">
@@ -369,18 +382,24 @@ function UserFields({ form, updateForm, includePassword = false }) {
           <Form.Label>Парола</Form.Label>
           <Form.Control
             type="password"
-            minLength={4}
             value={form.password}
-            onChange={(event) => updateForm('password', event.target.value)}
+            isInvalid={Boolean(passwordError)}
+            onChange={(event) => {
+              updateForm('password', event.target.value)
+              onPasswordChange()
+            }}
             required
           />
-          <Form.Text>Поне 4 символа.</Form.Text>
+          <Form.Control.Feedback type="invalid">{passwordError}</Form.Control.Feedback>
+          <Form.Text>{PASSWORD_MESSAGE}</Form.Text>
         </Form.Group>
       )}
       <Form.Group className="mb-3">
         <Form.Label>Роля</Form.Label>
         <Form.Select value={form.role} onChange={(event) => updateForm('role', event.target.value)}>
-          {Object.entries(ROLE_LABELS).map(([value, label]) => (
+          {Object.entries(ROLE_LABELS)
+            .filter(([value]) => value !== 'SUPER_ADMIN')
+            .map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>

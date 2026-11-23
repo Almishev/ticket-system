@@ -18,9 +18,12 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "tickets")
+@Table(name = "tickets", uniqueConstraints = {
+		@UniqueConstraint(columnNames = { "company_id", "ticket_number" })
+})
 public class Ticket {
 
 	@Id
@@ -30,7 +33,7 @@ public class Ticket {
 	@Column(nullable = false)
 	private String title;
 	
-	@Column(nullable = false, length = 2000)
+	@Column(length = 2000)
 	private String description;
 	
 	@Enumerated(EnumType.STRING)
@@ -44,6 +47,10 @@ public class Ticket {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "category_id", nullable = false)
 	private Category category;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "company_id")
+	private Company company;
 	
 	
 	@ManyToOne(fetch = FetchType.LAZY)
@@ -54,8 +61,8 @@ public class Ticket {
 	@JoinColumn(name = "assigned_to")
 	private User assignedTo;
 	
-	@Column(nullable = false, unique = true)
-	private String ticketNumber; // INC-000001
+	@Column(nullable = false)
+	private String ticketNumber;
 	
 	private LocalDateTime createdAt;
 	
@@ -117,6 +124,14 @@ public class Ticket {
 
 	public void setCategory(Category category) {
 		this.category = category;
+	}
+
+	public Company getCompany() {
+		return company;
+	}
+
+	public void setCompany(Company company) {
+		this.company = company;
 	}
 
 	public User getCreatedBy() {

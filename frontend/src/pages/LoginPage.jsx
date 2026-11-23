@@ -19,15 +19,15 @@ export default function LoginPage() {
   }
 
   if (user) {
-    return <Navigate to="/tickets" replace />
+    return <Navigate to={user.role === 'SUPER_ADMIN' ? '/companies' : '/tickets'} replace />
   }
 
   async function onSubmit(event) {
     event.preventDefault()
     setPending(true)
     try {
-      await login(email, password)
-      navigate('/tickets', { replace: true })
+      const profile = await login(email, password)
+      navigate(profile.role === 'SUPER_ADMIN' ? '/companies' : '/tickets', { replace: true })
     } catch (requestError) {
       toast.error(requestError.status === 401 ? 'Грешен имейл или парола.' : requestError.message)
     } finally {

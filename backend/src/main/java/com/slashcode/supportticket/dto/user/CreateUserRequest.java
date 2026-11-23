@@ -3,9 +3,12 @@ package com.slashcode.supportticket.dto.user;
 import com.slashcode.supportticket.enums.UserRole;
 import com.slashcode.supportticket.enums.UserStatus;
 
+import com.slashcode.supportticket.util.PasswordPolicy;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class CreateUserRequest {
@@ -23,7 +26,7 @@ public class CreateUserRequest {
 	private String email;
 	
 	@NotBlank(message = "Password is required")
-	@Size(min = 4, message = "Password must contain at least 4 chars")
+	@Pattern(regexp = PasswordPolicy.PATTERN, message = PasswordPolicy.MESSAGE)
 	private String password;
 	
 	@NotNull(message = "Role is required")

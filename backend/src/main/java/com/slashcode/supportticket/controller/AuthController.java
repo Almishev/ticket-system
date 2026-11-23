@@ -9,14 +9,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.slashcode.supportticket.dto.user.CreateUserRequest;
+import com.slashcode.supportticket.dto.user.RegisterRequest;
 import com.slashcode.supportticket.dto.user.UserResponse;
-import com.slashcode.supportticket.enums.UserRole;
 import com.slashcode.supportticket.exception.ResourceNotFoundException;
+import com.slashcode.supportticket.service.CompanyService;
 import com.slashcode.supportticket.mapper.UserMapper;
 import com.slashcode.supportticket.respository.UserRepository;
 import com.slashcode.supportticket.response.ApiResponse;
-import com.slashcode.supportticket.service.UserService;
 import com.slashcode.supportticket.util.ResponseUtils;
 
 import jakarta.validation.Valid;
@@ -27,18 +26,17 @@ public class AuthController {
 
 	private final UserRepository userRepository;
 	private final UserMapper userMapper;
-	private final UserService userService;
+	private final CompanyService companyService;
 
-	public AuthController(UserRepository userRepository, UserMapper userMapper, UserService userService) {
+	public AuthController(UserRepository userRepository, UserMapper userMapper, CompanyService companyService) {
 		this.userRepository = userRepository;
 		this.userMapper = userMapper;
-		this.userService = userService;
+		this.companyService = companyService;
 	}
 
 	@PostMapping("/register")
-	public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody CreateUserRequest request) {
-		request.setRole(UserRole.ADMIN);
-		UserResponse response = userService.createUser(request);
+	public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
+		UserResponse response = companyService.register(request);
 		return ResponseUtils.getResponse(HttpStatus.CREATED, "User registered successfully", response);
 	}
 
@@ -50,7 +48,7 @@ public class AuthController {
 					"Authentication is required to access this resource", null);
 		}
 
-		UserResponse response = userRepository.findByEmail(authentication.getName())
+		UserResponse response = userRepository.findByEmailWithCompany(authentication.getName())
 				.map(userMapper::toResponse)
 				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
 

@@ -13,10 +13,12 @@ import com.slashcode.supportticket.dto.user.CreateUserRequest;
 import com.slashcode.supportticket.dto.user.UpdateUserRequest;
 import com.slashcode.supportticket.dto.user.UpdateUserStatusRequest;
 import com.slashcode.supportticket.dto.user.UserResponse;
+import com.slashcode.supportticket.enums.UserRole;
 import com.slashcode.supportticket.exception.ForbiddenException;
 import com.slashcode.supportticket.exception.ResourceNotFoundException;
 import com.slashcode.supportticket.exception.UserAlreadyExistException;
 import com.slashcode.supportticket.mapper.UserMapper;
+import com.slashcode.supportticket.model.Company;
 import com.slashcode.supportticket.model.User;
 import com.slashcode.supportticket.respository.CommentRepository;
 import com.slashcode.supportticket.respository.TicketRepository;
@@ -47,23 +49,30 @@ public class UserServiceImpl implements UserService{
 	}
 	
 	private User findUserOrThrow(Long id) {
-		return userRepository.findById(id)
+		User user = userRepository.findById(id)
         .orElseThrow(
                 () -> new ResourceNotFoundException(
                         "User not found with id " + id
                 )
         );
+		ticketAccess.requireSameCompany(user.getCompany(), "User not found with id " + id);
+		return user;
 	}
 	
 
 	@Override
 	public UserResponse createUser(CreateUserRequest request) {
 		
+		if (request.getRole() == UserRole.SUPER_ADMIN) {
+			throw new ForbiddenException("Нямаш достъп до тази роля.");
+		}
+		Company company = ticketAccess.requireCompany();
 		if(userRepository.existsByEmail(request.getEmail())) {
 			throw new UserAlreadyExistException("User is already exist with this email "+request.getEmail());
 		}
 		
 		User user = userMapper.toEntity(request);
+		user.setCompany(company);
 		user.setPassword(passwordEncoder.encode(request.getPassword()));
 		User savedUser = userRepository.save(user);
 		return userMapper.toResponse(savedUser);
@@ -81,12 +90,14 @@ public class UserServiceImpl implements UserService{
 					Map.of("email", "email", "role", "role", "department", "department", "status", "status", "createdAt", "createdAt"),
 					"createdAt");
 		}
-		return Paging.toResponse(userRepository.findAll(pageable), userMapper::toResponse);
+		Long companyId = ticketAccess.requireCompany().getId();
+		return Paging.toResponse(userRepository.findByCompanyId(companyId, pageable), userMapper::toResponse);
 	}
 
 	@Override
 	public List<UserResponse> getAllUsers() {
-		return userRepository.findAll()
+		Long companyId = ticketAccess.requireCompany().getId();
+		return userRepository.findByCompanyId(companyId)
 			.stream()
 			.map(user -> userMapper.toResponse(user))
 			.toList();
@@ -102,6 +113,9 @@ public class UserServiceImpl implements UserService{
 	public UserResponse updateUser(Long id, UpdateUserRequest request) {
 		
 		User user = findUserOrThrow(id);
+		if (request.getRole() == UserRole.SUPER_ADMIN) {
+			throw new ForbiddenException("Нямаш достъп до тази роля.");
+		}
 		
 		userMapper.toEntity(user, request);
 		
