@@ -1,7 +1,9 @@
 package com.slashcode.supportticket.service.impl;
 
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.slashcode.supportticket.dto.category.CategoryResponse;
@@ -13,7 +15,9 @@ import com.slashcode.supportticket.exception.ResourceNotFoundException;
 import com.slashcode.supportticket.mapper.CategoryMapper;
 import com.slashcode.supportticket.model.Category;
 import com.slashcode.supportticket.respository.CategoryRepository;
+import com.slashcode.supportticket.response.PageResponse;
 import com.slashcode.supportticket.service.CategoryService;
+import com.slashcode.supportticket.util.Paging;
 
 @Service
 public class CategoryServiceImpl implements CategoryService{
@@ -46,6 +50,12 @@ public class CategoryServiceImpl implements CategoryService{
 		return categoryMapper.toResponse(savedCategory);
 	}
 	
+	@Override
+	public PageResponse<CategoryResponse> getCategoryPage(int page, int size, String sort, String direction) {
+		Pageable pageable = Paging.of(page, size, sort, direction, Map.of("name", "name", "active", "active"), "name");
+		return Paging.toResponse(categoryRepository.findAll(pageable), categoryMapper::toResponse);
+	}
+
 	@Override
 	public List<CategoryResponse> getAllCategories() {
 		return 

@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -41,6 +43,21 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(ResourceNotFoundException.class)
 	public ResponseEntity<ApiResponse<Void>> handleUserNotFoundException(ResourceNotFoundException exception){		
 		return ResponseUtils.getResponse(HttpStatus.NOT_FOUND, exception.getMessage(), null);
+	}
+
+	@ExceptionHandler(ForbiddenException.class)
+	public ResponseEntity<ApiResponse<Void>> handleForbiddenException(ForbiddenException exception) {
+		return ResponseUtils.getResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null);
+	}
+
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException exception) {
+		return ResponseUtils.getResponse(HttpStatus.FORBIDDEN, "You do not have permission to access this resource", null);
+	}
+
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException exception) {
+		return ResponseUtils.getResponse(HttpStatus.METHOD_NOT_ALLOWED, exception.getMessage(), null);
 	}
 	
 	@ExceptionHandler({InvalidTicketStatusException.class, InvalidTicketAssignmentException.class, InvalidCommentVisibilityException.class, IllegalArgumentException.class})

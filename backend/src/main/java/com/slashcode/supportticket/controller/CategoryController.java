@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.slashcode.supportticket.dto.category.CategoryResponse;
@@ -40,11 +41,16 @@ public class CategoryController {
 	}
 	
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAllCategories(){
-		
-		List<CategoryResponse> response = categoryService.getAllCategories();
-		return ResponseUtils.getResponse(HttpStatus.OK, "Category fetched successfully", response);
-		
+	public ResponseEntity<?> getAllCategories(
+			@RequestParam(required = false) Integer page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(defaultValue = "name") String sort,
+			@RequestParam(defaultValue = "asc") String direction) {
+		if (page == null) {
+			return ResponseUtils.getResponse(HttpStatus.OK, "Category fetched successfully", categoryService.getAllCategories());
+		}
+		return ResponseUtils.getResponse(HttpStatus.OK, "Category fetched successfully",
+				categoryService.getCategoryPage(page, size, sort, direction));
 	}
 	
 	@GetMapping("/{id}")

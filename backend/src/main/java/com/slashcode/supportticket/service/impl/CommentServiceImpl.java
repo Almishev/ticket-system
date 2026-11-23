@@ -18,6 +18,7 @@ import com.slashcode.supportticket.respository.CommentRepository;
 import com.slashcode.supportticket.respository.TicketRepository;
 import com.slashcode.supportticket.respository.UserRepository;
 import com.slashcode.supportticket.service.CommentService;
+import com.slashcode.supportticket.service.TicketAccess;
 
 @Service
 public class CommentServiceImpl implements CommentService{
@@ -26,13 +27,15 @@ public class CommentServiceImpl implements CommentService{
 	private final UserRepository userRepository;
 	private final CommentRepository commentRepository;
 	private final CommentMapper commentMapper;
+	private final TicketAccess ticketAccess;
 	
 	public CommentServiceImpl(TicketRepository ticketRepository, UserRepository userRepository,
-			CommentRepository commentRepository, CommentMapper commentMapper) {
+			CommentRepository commentRepository, CommentMapper commentMapper, TicketAccess ticketAccess) {
 		this.ticketRepository = ticketRepository;
 		this.userRepository = userRepository;
 		this.commentRepository = commentRepository;
 		this.commentMapper = commentMapper;
+		this.ticketAccess = ticketAccess;
 	}
 
 	private Ticket findTicketOrThrow(Long id) {
@@ -53,7 +56,9 @@ public class CommentServiceImpl implements CommentService{
 	@Override
 	public CommentResponse addComment(Long ticketId, CreateCommentRequest request) {
 		Ticket ticket = findTicketOrThrow(ticketId);
-		User user = findUserOrThrow(request.getUserId());
+		ticketAccess.requireVisible(ticket);
+		User current = ticketAccess.currentUser();
+		User user = ticketAccess.isEmployee(current) ? current : findUserOrThrow(request.getUserId());
 		
 		if(user.getRole() == UserRole.EMPLOYEE && request.getVisiblity() == CommentVisiblity.INTERNAL) {
 			throw new InvalidCommentVisibilityException("Employee can only create public comments");
@@ -66,7 +71,8 @@ public class CommentServiceImpl implements CommentService{
 	
 	@Override
 	public List<CommentResponse> getCommentsByTicketId(Long ticketId) {
-		findTicketOrThrow(ticketId);
+		Ticket ticket = findTicketOrThrow(ticketId);
+		ticketAccess.requireVisible(ticket);
 		
 		return commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId)
 			.stream()

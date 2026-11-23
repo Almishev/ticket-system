@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,10 +42,16 @@ public class TicketController {
 	}
 	
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<TicketResponse>>> getAllTickets(){
-		List<TicketResponse> response = ticketService.getAllTickets();
-		return ResponseUtils.getResponse(HttpStatus.OK, "Tickets fecthed successfully", response);
-		
+	public ResponseEntity<?> getAllTickets(
+			@RequestParam(required = false) Integer page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(defaultValue = "createdAt") String sort,
+			@RequestParam(defaultValue = "desc") String direction) {
+		if (page == null) {
+			return ResponseUtils.getResponse(HttpStatus.OK, "Tickets fecthed successfully", ticketService.getAllTickets());
+		}
+		return ResponseUtils.getResponse(HttpStatus.OK, "Tickets fecthed successfully",
+				ticketService.getTicketPage(page, size, sort, direction));
 	}
 	
 	@GetMapping("/{id}")
@@ -55,10 +62,17 @@ public class TicketController {
 	}
 	
 	@GetMapping("/my")
-	public ResponseEntity<ApiResponse<List<TicketResponse>>> getMyTickets(@RequestParam Long userId){
-		List<TicketResponse> response = ticketService.getMyTickets(userId);
-		return ResponseUtils.getResponse(HttpStatus.OK, "Tickets fecthed successfully", response);
-		
+	public ResponseEntity<?> getMyTickets(
+			@RequestParam Long userId,
+			@RequestParam(required = false) Integer page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(defaultValue = "createdAt") String sort,
+			@RequestParam(defaultValue = "desc") String direction) {
+		if (page == null) {
+			return ResponseUtils.getResponse(HttpStatus.OK, "Tickets fecthed successfully", ticketService.getMyTickets(userId));
+		}
+		return ResponseUtils.getResponse(HttpStatus.OK, "Tickets fecthed successfully",
+				ticketService.getMyTicketPage(userId, page, size, sort, direction));
 	}
 	
 	@PutMapping("/{id}/status")
@@ -74,10 +88,11 @@ public class TicketController {
 		TicketResponse response = ticketService.assignTicket(id, request);
 		return ResponseUtils.getResponse(HttpStatus.OK, "Ticket assigned successfully", response);
 	}
-	
+
+	@Secured("ROLE_ADMIN")
 	@DeleteMapping("/{id}")
-	public ResponseEntity<ApiResponse<Void>> cancelTicket(@PathVariable Long id){
-		ticketService.cancelTicket(id);
-		return ResponseUtils.getResponse(HttpStatus.OK, "Ticket cancelled successfully", null);
+	public ResponseEntity<ApiResponse<Void>> deleteTicket(@PathVariable Long id) {
+		ticketService.deleteTicket(id);
+		return ResponseUtils.getResponse(HttpStatus.OK, "Ticket deleted successfully", null);
 	}
 }

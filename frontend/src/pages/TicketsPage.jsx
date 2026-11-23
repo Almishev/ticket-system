@@ -8,9 +8,11 @@ import Table from 'react-bootstrap/Table'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
+import MobileSort from '../components/MobileSort'
 import SortHeader from '../components/SortHeader'
 import { PRIORITY_LABELS, TICKET_STATUS_LABELS, formatDate, statusBadge } from '../labels'
-import { nextSort, sortRows } from '../sort'
+import { LazySentinel, Pager, pageQuery, useLazyPage } from '../paging'
+import { nextSort } from '../sort'
 
 const emptyTicket = {
   title: '',
@@ -23,52 +25,56 @@ export default function TicketsPage() {
   const { credentials, user } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
-  const [tickets, setTickets] = useState([])
   const [categories, setCategories] = useState([])
+  const employee = user?.role === 'EMPLOYEE'
   const [mineOnly, setMineOnly] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(emptyTicket)
   const [pending, setPending] = useState(false)
   const [sort, setSort] = useState({ key: 'createdAt', type: 'date', direction: 'desc' })
 
-  async function loadTickets(onlyMine = mineOnly) {
-    const path = onlyMine ? `/tickets/my?userId=${user.id}` : '/tickets'
-    const response = await api(path, { auth: credentials })
-    setTickets(response.data || [])
-  }
+  const {
+    items: tickets,
+    page,
+    totalPages,
+    total,
+    loading,
+    loadingMore,
+    loadMore,
+    goToPage,
+  } = useLazyPage(
+    async (nextPage, size) => {
+      const query = pageQuery(nextPage, size, sort)
+      const path = employee || mineOnly ? `/tickets/my?userId=${user.id}&${query}` : `/tickets?${query}`
+      try {
+        const response = await api(path, { auth: credentials })
+        return response.data
+      } catch (requestError) {
+        toast.error(requestError.message)
+        throw requestError
+      }
+    },
+    [credentials, employee, mineOnly, sort.key, sort.direction, user?.id, toast],
+    !!user,
+  )
 
   useEffect(() => {
     let cancelled = false
-    async function load() {
-      try {
-        const [ticketResponse, categoryResponse] = await Promise.all([
-          api('/tickets', { auth: credentials }),
-          api('/categories', { auth: credentials }),
-        ])
+    api('/categories', { auth: credentials })
+      .then((response) => {
         if (!cancelled) {
-          setTickets(ticketResponse.data || [])
-          setCategories(categoryResponse.data || [])
+          setCategories(response.data || [])
         }
-      } catch (requestError) {
+      })
+      .catch((requestError) => {
         if (!cancelled) {
           toast.error(requestError.message)
         }
-      }
-    }
-    load()
+      })
     return () => {
       cancelled = true
     }
   }, [credentials, toast])
-
-  async function toggleMine(nextValue) {
-    setMineOnly(nextValue)
-    try {
-      await loadTickets(nextValue)
-    } catch (requestError) {
-      toast.error(requestError.message)
-    }
-  }
 
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -91,7 +97,7 @@ export default function TicketsPage() {
       })
       setShowCreate(false)
       setForm(emptyTicket)
-      await loadTickets(mineOnly)
+      goToPage(0)
       toast.success('Заявката е създадена.')
     } catch (requestError) {
       toast.error(requestError.message)
@@ -108,36 +114,81 @@ export default function TicketsPage() {
     [categories],
   )
 
-  const sortedTickets = useMemo(
-    () =>
-      sortRows(tickets, {
-        ...sort,
-        key: (ticket) => (sort.key === 'status' ? TICKET_STATUS_LABELS[ticket.status] : ticket[sort.key]),
-      }),
-    [tickets, sort],
-  )
+  const sortedTickets = tickets
 
   return (
     <>
       <div className="page-heading">
         <div>
           <h1 className="h3 mb-1">Заявки</h1>
-          <p className="text-secondary mb-0">{tickets.length} записа</p>
+          <p className="text-secondary mb-0">{total} записа</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>Нова заявка</Button>
       </div>
 
-      <div className="btn-group mb-3">
-        <Button variant={mineOnly ? 'outline-primary' : 'primary'} onClick={() => toggleMine(false)}>
-          Всички
-        </Button>
-        <Button variant={mineOnly ? 'primary' : 'outline-primary'} onClick={() => toggleMine(true)}>
-          Моите
-        </Button>
+      {!employee && (
+        <div className="btn-group mb-3">
+          <Button variant={mineOnly ? 'outline-primary' : 'primary'} onClick={() => setMineOnly(false)}>
+            Всички
+          </Button>
+          <Button variant={mineOnly ? 'primary' : 'outline-primary'} onClick={() => setMineOnly(true)}>
+            Моите
+          </Button>
+        </div>
+      )}
+
+      <MobileSort
+        sort={sort}
+        onSort={(key, type) => setSort((current) => nextSort(current, key, type))}
+        options={[
+          { key: 'ticketNumber', label: 'Номер', type: 'text' },
+          { key: 'title', label: 'Заглавие', type: 'text' },
+          { key: 'priority', label: 'Приоритет', type: 'priority' },
+          { key: 'status', label: 'Статус', type: 'text' },
+          { key: 'categoryName', label: 'Категория', type: 'text' },
+          { key: 'createdByName', label: 'Създал', type: 'text' },
+          { key: 'assignedToName', label: 'Възложен', type: 'text' },
+          { key: 'createdAt', label: 'Дата', type: 'date' },
+        ]}
+      />
+
+      <div className="only-mobile record-list">
+        {!loading && sortedTickets.length === 0 && <p className="text-secondary text-center py-4 mb-0">Няма заявки</p>}
+        {loading && sortedTickets.length === 0 && <p className="text-secondary text-center py-4 mb-0">Зареждане...</p>}
+        {sortedTickets.map((ticket) => (
+          <button key={ticket.id} type="button" className="record-card" onClick={() => navigate(`/tickets/${ticket.id}`)}>
+            <div className="record-card-top">
+              <strong>{ticket.ticketNumber}</strong>
+              <span className="record-badges">
+                <Badge bg={statusBadge(ticket.priority)}>{PRIORITY_LABELS[ticket.priority]}</Badge>
+                <Badge bg={statusBadge(ticket.status)}>{TICKET_STATUS_LABELS[ticket.status]}</Badge>
+              </span>
+            </div>
+            <p className="record-title">{ticket.title}</p>
+            <div className="record-meta">
+              <div>
+                <span>Категория</span>
+                {ticket.categoryName}
+              </div>
+              <div>
+                <span>Създал</span>
+                {ticket.createdByName}
+              </div>
+              <div>
+                <span>Възложен</span>
+                {ticket.assignedToName || '—'}
+              </div>
+              <div>
+                <span>Дата</span>
+                {formatDate(ticket.createdAt)}
+              </div>
+            </div>
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white border rounded">
-        <Table responsive hover className="mb-0 align-middle">
+      <div className="only-desktop bg-white border rounded">
+        <Table hover className="mb-0 align-middle">
           <thead>
             <tr>
               <SortHeader label="Номер" column="ticketNumber" sort={sort} onSort={(key, type) => setSort((current) => nextSort(current, key, type))} />
@@ -151,7 +202,14 @@ export default function TicketsPage() {
             </tr>
           </thead>
           <tbody>
-            {tickets.length === 0 && (
+            {loading && sortedTickets.length === 0 && (
+              <tr>
+                <td colSpan={8} className="text-secondary text-center py-4">
+                  Зареждане...
+                </td>
+              </tr>
+            )}
+            {!loading && tickets.length === 0 && (
               <tr>
                 <td colSpan={8} className="text-secondary text-center py-4">
                   Няма заявки
@@ -177,6 +235,10 @@ export default function TicketsPage() {
           </tbody>
         </Table>
       </div>
+
+      <LazySentinel enabled={!loading && !loadingMore && page + 1 < totalPages} watch={page} onVisible={loadMore} />
+      {loadingMore && <p className="text-secondary text-center mb-0">Зареждане...</p>}
+      <Pager page={page} totalPages={totalPages} disabled={loading || loadingMore} onPage={goToPage} />
 
       <Modal show={showCreate} onHide={() => setShowCreate(false)} centered>
         <Form onSubmit={createTicket}>

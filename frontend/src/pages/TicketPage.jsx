@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Badge from 'react-bootstrap/Badge'
 import Button from 'react-bootstrap/Button'
 import Card from 'react-bootstrap/Card'
 import Form from 'react-bootstrap/Form'
+import Modal from 'react-bootstrap/Modal'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
@@ -19,6 +20,7 @@ import { nextSort, sortRows } from '../sort'
 
 export default function TicketPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { credentials, user } = useAuth()
   const toast = useToast()
   const [ticket, setTicket] = useState(null)
@@ -32,7 +34,9 @@ export default function TicketPage() {
   const [commentSort, setCommentSort] = useState({ key: 'createdAt', type: 'date', direction: 'asc' })
 
   const canAssign = user?.role === 'ADMIN' || user?.role === 'SUPPORT'
+  const isAdmin = user?.role === 'ADMIN'
   const employee = user?.role === 'EMPLOYEE'
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   async function load() {
     const ticketResponse = await api(`/tickets/${id}`, { auth: credentials })
@@ -116,6 +120,11 @@ export default function TicketPage() {
           </Badge>
           <Badge bg={statusBadge(ticket.status)}>{TICKET_STATUS_LABELS[ticket.status]}</Badge>
         </div>
+        {isAdmin && (
+          <Button variant="outline-danger" onClick={() => setConfirmDelete(true)}>
+            Изтрий
+          </Button>
+        )}
       </div>
 
       <p className="bg-white border rounded p-3">{ticket.description}</p>
@@ -218,25 +227,30 @@ export default function TicketPage() {
             </Card>
           </div>
         )}
-        <div className="col-lg-4">
-          <Card>
-            <Card.Body>
-              <Card.Title className="h6">Отказ</Card.Title>
-              <p className="text-secondary">Заявката остава в базата със статус „Отменен“.</p>
-              <Button
-                variant="outline-danger"
-                disabled={closed}
-                onClick={() =>
-                  run(async () => {
-                    await api(`/tickets/${id}`, { method: 'DELETE', auth: credentials })
-                  }, 'Заявката е отменена.')
-                }
-              >
-                Отмени заявката
-              </Button>
-            </Card.Body>
-          </Card>
-        </div>
+        {allowedStatuses.includes('CANCELLED') && (
+          <div className="col-lg-4">
+            <Card>
+              <Card.Body>
+                <Card.Title className="h6">Отказ</Card.Title>
+                <p className="text-secondary">Статусът става „Отменен“. Заявката остава в списъка.</p>
+                <Button
+                  variant="outline-danger"
+                  onClick={() =>
+                    run(async () => {
+                      await api(`/tickets/${id}/status`, {
+                        method: 'PUT',
+                        auth: credentials,
+                        body: { status: 'CANCELLED' },
+                      })
+                    }, 'Заявката е отменена.')
+                  }
+                >
+                  Отмени заявката
+                </Button>
+              </Card.Body>
+            </Card>
+          </div>
+        )}
       </div>
 
       <div className="d-flex justify-content-between align-items-center gap-3 mb-2">
@@ -273,6 +287,35 @@ export default function TicketPage() {
           </div>
         ))}
       </div>
+
+      <Modal show={confirmDelete} onHide={() => setConfirmDelete(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Изтриване на заявка</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {ticket.ticketNumber} и коментарите към нея се изтриват.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setConfirmDelete(false)}>
+            Отказ
+          </Button>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              try {
+                await api(`/tickets/${id}`, { method: 'DELETE', auth: credentials })
+                setConfirmDelete(false)
+                toast.success('Заявката е изтрита.')
+                navigate('/tickets')
+              } catch (requestError) {
+                toast.error(requestError.message)
+              }
+            }}
+          >
+            Изтрий
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Card>
         <Card.Body>

@@ -6,6 +6,7 @@ import com.slashcode.supportticket.dto.ticket.AssignTicketRequest;
 import com.slashcode.supportticket.dto.ticket.CreateTicketRequest;
 import com.slashcode.supportticket.dto.ticket.TicketResponse;
 import com.slashcode.supportticket.dto.ticket.UpdateTicketStatusRequest;
+import com.slashcode.supportticket.response.PageResponse;
 
 public interface TicketService {
 
@@ -13,14 +14,18 @@ public interface TicketService {
 
 	List<TicketResponse> getAllTickets();
 
+	PageResponse<TicketResponse> getTicketPage(int page, int size, String sort, String direction);
+
 	TicketResponse getTicketById(Long id);
 
 	List<TicketResponse> getMyTickets(Long userId);
+
+	PageResponse<TicketResponse> getMyTicketPage(Long userId, int page, int size, String sort, String direction);
 
 	TicketResponse updateStatus(Long id, UpdateTicketStatusRequest request);
 
 	TicketResponse assignTicket(Long id, AssignTicketRequest request);
 
-	void cancelTicket(Long id);
+	void deleteTicket(Long id);
 	
 }

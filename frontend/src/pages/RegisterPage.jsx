@@ -46,7 +46,7 @@ export default function RegisterPage() {
           email: form.email.trim(),
           password: form.password,
           department: form.department.trim(),
-          role: 'EMPLOYEE',
+          role: 'ADMIN',
         },
       })
       await login(form.email.trim(), form.password)
@@ -110,7 +110,7 @@ export default function RegisterPage() {
               onChange={(event) => update('password', event.target.value)}
               required
             />
-            <Form.Text>Поне 4 символа. Новият профил е със роля служител.</Form.Text>
+            <Form.Text>Поне 4 символа. Новият профил е администратор.</Form.Text>
           </Form.Group>
           <Button type="submit" className="w-100" disabled={pending}>
             {pending ? 'Създаване...' : 'Създай профил'}

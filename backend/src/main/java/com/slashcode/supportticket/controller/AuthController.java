@@ -37,7 +37,7 @@ public class AuthController {
 
 	@PostMapping("/register")
 	public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody CreateUserRequest request) {
-		request.setRole(UserRole.EMPLOYEE);
+		request.setRole(UserRole.ADMIN);
 		UserResponse response = userService.createUser(request);
 		return ResponseUtils.getResponse(HttpStatus.CREATED, "User registered successfully", response);
 	}

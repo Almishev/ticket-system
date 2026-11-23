@@ -1,8 +1,11 @@
 package com.slashcode.supportticket.service.impl;
 
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.slashcode.supportticket.dto.ticket.AssignTicketRequest;
 import com.slashcode.supportticket.dto.ticket.CreateTicketRequest;
@@ -11,16 +14,19 @@ import com.slashcode.supportticket.dto.ticket.UpdateTicketStatusRequest;
 import com.slashcode.supportticket.enums.TicketStatus;
 import com.slashcode.supportticket.enums.UserRole;
 import com.slashcode.supportticket.exception.InvalidTicketAssignmentException;
-import com.slashcode.supportticket.exception.InvalidTicketStatusException;
 import com.slashcode.supportticket.exception.ResourceNotFoundException;
 import com.slashcode.supportticket.mapper.TicketMapper;
 import com.slashcode.supportticket.model.Category;
 import com.slashcode.supportticket.model.Ticket;
 import com.slashcode.supportticket.model.User;
 import com.slashcode.supportticket.respository.CategoryRepository;
+import com.slashcode.supportticket.respository.CommentRepository;
 import com.slashcode.supportticket.respository.TicketRepository;
 import com.slashcode.supportticket.respository.UserRepository;
+import com.slashcode.supportticket.response.PageResponse;
+import com.slashcode.supportticket.service.TicketAccess;
 import com.slashcode.supportticket.service.TicketService;
+import com.slashcode.supportticket.util.Paging;
 
 @Service
 public class TicketServiceImpl implements TicketService{
@@ -28,14 +34,19 @@ public class TicketServiceImpl implements TicketService{
 	private final TicketRepository ticketRepository;
 	private final UserRepository userRepository;
 	private final CategoryRepository categoryRepository;
+	private final CommentRepository commentRepository;
 	private final TicketMapper ticketMapper;
+	private final TicketAccess ticketAccess;
 	
 	public TicketServiceImpl(TicketRepository ticketRepository, UserRepository userRepository,
-			CategoryRepository categoryRepository, TicketMapper ticketMapper) {
+			CategoryRepository categoryRepository, CommentRepository commentRepository, TicketMapper ticketMapper,
+			TicketAccess ticketAccess) {
 		this.ticketRepository = ticketRepository;
 		this.userRepository = userRepository;
 		this.categoryRepository = categoryRepository;
+		this.commentRepository = commentRepository;
 		this.ticketMapper = ticketMapper;
+		this.ticketAccess = ticketAccess;
 	}
 	
 	private User findUserOrThrow(Long id) {
@@ -62,8 +73,9 @@ public class TicketServiceImpl implements TicketService{
 
 	@Override
 	public TicketResponse createTicket(CreateTicketRequest request) {
-		
-		User user = findUserOrThrow(request.getCreatedById());
+		User current = ticketAccess.currentUser();
+		Long creatorId = ticketAccess.isEmployee(current) ? current.getId() : request.getCreatedById();
+		User user = findUserOrThrow(creatorId);
 		Category category = findCategoryOrThrow(request.getCategoryId());
 		
 		if(!category.getActive()) {
@@ -76,34 +88,73 @@ public class TicketServiceImpl implements TicketService{
 		return ticketMapper.toResponse(savedTicket);
 	}
 
+	private static final Map<String, String> TICKET_SORT = Map.of(
+			"ticketNumber", "ticketNumber",
+			"title", "title",
+			"priority", "priority",
+			"status", "status",
+			"categoryName", "category.name",
+			"createdByName", "createdBy.firstName",
+			"assignedToName", "assignedTo.firstName",
+			"createdAt", "createdAt"
+	);
+
 	@Override
 	public List<TicketResponse> getAllTickets() {
+		User current = ticketAccess.currentUser();
+		if (ticketAccess.isEmployee(current)) {
+			return ticketRepository.findByCreatedById(current.getId())
+					.stream()
+					.map(ticketMapper::toResponse)
+					.toList();
+		}
 		return ticketRepository.findAll()
 			.stream()
 			.map(ticketMapper::toResponse)
 			.toList();			
-	}	
+	}
+
+	@Override
+	public PageResponse<TicketResponse> getTicketPage(int page, int size, String sort, String direction) {
+		Pageable pageable = Paging.of(page, size, sort, direction, TICKET_SORT, "createdAt");
+		User current = ticketAccess.currentUser();
+		if (ticketAccess.isEmployee(current)) {
+			return Paging.toResponse(ticketRepository.findByCreatedById(current.getId(), pageable), ticketMapper::toResponse);
+		}
+		return Paging.toResponse(ticketRepository.findAll(pageable), ticketMapper::toResponse);
+	}
 	
 	@Override
 	public TicketResponse getTicketById(Long id) {
 		Ticket ticket = findTicketOrThrow(id);
+		ticketAccess.requireVisible(ticket);
 		return ticketMapper.toResponse(ticket);
 	}
 	
 	
 	@Override
 	public List<TicketResponse> getMyTickets(Long userId) {
+		ticketAccess.requireOwnQuery(userId);
 		findUserOrThrow(userId);
 		return ticketRepository.findByCreatedById(userId)
 				.stream()
 				.map(ticketMapper::toResponse)
 				.toList();
 	}
+
+	@Override
+	public PageResponse<TicketResponse> getMyTicketPage(Long userId, int page, int size, String sort, String direction) {
+		ticketAccess.requireOwnQuery(userId);
+		findUserOrThrow(userId);
+		Pageable pageable = Paging.of(page, size, sort, direction, TICKET_SORT, "createdAt");
+		return Paging.toResponse(ticketRepository.findByCreatedById(userId, pageable), ticketMapper::toResponse);
+	}
 	
 	@Override
 	public TicketResponse updateStatus(Long id, UpdateTicketStatusRequest request) {
 		
 		Ticket ticket = findTicketOrThrow(id);
+		ticketAccess.requireVisible(ticket);
 		
 		request.validateStatusTransition(ticket.getStatus());
 		
@@ -116,6 +167,7 @@ public class TicketServiceImpl implements TicketService{
 	@Override
 	public TicketResponse assignTicket(Long id, AssignTicketRequest request) {
 		Ticket ticket = findTicketOrThrow(id);
+		ticketAccess.requireVisible(ticket);
 		
 		User supportUser = findUserOrThrow(request.getSupportUserId());
 		
@@ -142,18 +194,13 @@ public class TicketServiceImpl implements TicketService{
 		
 		return ticketMapper.toResponse(updatedTicket);
 	}
-	
+
 	@Override
-	public void cancelTicket(Long id) {
-		Ticket ticket = findTicketOrThrow(id);
-		if(ticket.getStatus() == TicketStatus.CLOSED) {
-			throw new InvalidTicketStatusException("Closed ticket cannot be cancelled");
-		}
-		if(ticket.getStatus() == TicketStatus.CANCELLED) {
-			throw new InvalidTicketStatusException("Ticket is already cancelled");
-		}
-		ticket.setStatus(TicketStatus.CANCELLED);
-		ticketRepository.save(ticket);
+	@Transactional
+	public void deleteTicket(Long id) {
+		findTicketOrThrow(id);
+		commentRepository.deleteByTicketId(id);
+		ticketRepository.deleteById(id);
 	}
 
 	private String generateTicketNumber() {

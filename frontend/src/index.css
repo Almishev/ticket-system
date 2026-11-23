@@ -230,21 +230,66 @@ body {
   }
 
   .app-sidebar nav {
-    flex-direction: row;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     padding: 0;
   }
 
   .app-sidebar a {
-    white-space: nowrap;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 4px;
+    font-size: 12px;
+    line-height: 1.2;
+    text-align: center;
   }
 
-  .app-header:not(.public-header),
-  .app-header-user {
-    align-items: flex-start;
+  .nav-icon {
+    margin-right: 0;
+    font-size: 16px;
   }
 
   .app-header:not(.public-header) {
+    align-items: center;
+    padding: 12px 14px;
+  }
+
+  .app-header h1 {
+    font-size: 20px;
+  }
+
+  .app-header-user {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 0;
+    font-size: 13px;
+    text-align: right;
+  }
+
+  .app-header-user span {
+    max-width: 48vw;
+  }
+
+  .app-main {
+    padding: 14px;
+  }
+
+  .only-desktop {
+    display: none;
+  }
+
+  .only-mobile {
+    display: block;
+  }
+
+  .only-mobile.record-list,
+  .only-mobile.mobile-sort {
+    display: flex;
+  }
+
+  .category-create {
     flex-direction: column;
   }
 }
@@ -293,8 +338,156 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.category-create {
+  display: flex;
+  gap: 8px;
+}
+
+.category-create .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.only-mobile {
+  display: none;
+}
+
+.mobile-sort {
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mobile-sort .form-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.record-list {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.record-card {
+  display: block;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e6eaf0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: inherit;
+  text-align: left;
+}
+
+button.record-card {
+  cursor: pointer;
+}
+
+.record-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.record-card-top .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.record-badges,
+.record-card-top .badge {
+  flex-shrink: 0;
+}
+
+.record-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.record-title {
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+
+.record-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.record-meta span {
+  display: block;
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.row-actions {
+  display: grid;
+  grid-template-columns: 5.5rem 7rem 4.75rem;
+  gap: 8px;
+  justify-content: end;
+}
+
+.row-actions .btn {
+  width: 100%;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  white-space: nowrap;
+}
+
+.record-card .row-actions {
+  margin-top: 12px;
+  justify-content: start;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.pager button {
+  min-width: 36px;
+  border: 1px solid #d5dde6;
+  background: #fff;
+  color: #1c2430;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.pager button.active {
+  background: #3498db;
+  border-color: #3498db;
+  color: #fff;
+}
+
+.pager button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.lazy-sentinel {
+  height: 1px;
 }
 
 .toast-stack {

@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.slashcode.supportticket.dto.user.CreateUserRequest;
@@ -42,8 +44,16 @@ public class UserController {
 	
 	@Secured({"ROLE_ADMIN", "ROLE_SUPPORT"})
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers(){
-		return ResponseUtils.getResponse(HttpStatus.OK, "Users fetched successfully", userService.getAllUsers());
+	public ResponseEntity<?> getAllUsers(
+			@RequestParam(required = false) Integer page,
+			@RequestParam(defaultValue = "20") int size,
+			@RequestParam(defaultValue = "createdAt") String sort,
+			@RequestParam(defaultValue = "desc") String direction) {
+		if (page == null) {
+			return ResponseUtils.getResponse(HttpStatus.OK, "Users fetched successfully", userService.getAllUsers());
+		}
+		return ResponseUtils.getResponse(HttpStatus.OK, "Users fetched successfully",
+				userService.getUserPage(page, size, sort, direction));
 	}
 	
 	@Secured({"ROLE_ADMIN","ROLE_SUPPORT"})
@@ -62,6 +72,13 @@ public class UserController {
 	@PatchMapping("/{id}/status")
 	public ResponseEntity<ApiResponse<UserResponse>> updateUserStatus(@Valid @RequestBody UpdateUserStatusRequest request, @PathVariable Long id){
 		return ResponseUtils.getResponse(HttpStatus.OK, "User status updated successfully", userService.updateUserStatus(id,request));
+	}
+
+	@Secured("ROLE_ADMIN")
+	@DeleteMapping("/{id}")
+	public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
+		userService.deleteUser(id);
+		return ResponseUtils.getResponse(HttpStatus.OK, "User deleted successfully", null);
 	}
 	
 }

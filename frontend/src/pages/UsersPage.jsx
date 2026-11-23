@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import Alert from 'react-bootstrap/Alert'
 import Badge from 'react-bootstrap/Badge'
 import Button from 'react-bootstrap/Button'
@@ -8,9 +8,11 @@ import Table from 'react-bootstrap/Table'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
+import MobileSort from '../components/MobileSort'
 import SortHeader from '../components/SortHeader'
 import { ROLE_LABELS, USER_STATUS_LABELS, formatDate, statusBadge } from '../labels'
-import { nextSort, sortRows } from '../sort'
+import { LazySentinel, Pager, pageQuery, useLazyPage } from '../paging'
+import { nextSort } from '../sort'
 
 const emptyUser = {
   firstName: '',
@@ -25,41 +27,37 @@ export default function UsersPage() {
   const { credentials, user } = useAuth()
   const toast = useToast()
   const isAdmin = user?.role === 'ADMIN'
-  const [users, setUsers] = useState([])
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(emptyUser)
   const [editing, setEditing] = useState(null)
+  const [personToDelete, setPersonToDelete] = useState(null)
   const [sort, setSort] = useState({ key: 'name', type: 'text', direction: 'asc' })
-
-  async function load() {
-    const response = await api('/users', { auth: credentials })
-    setUsers(response.data || [])
-  }
-
-  useEffect(() => {
-    if (user?.role === 'EMPLOYEE') {
-      return
-    }
-    load().catch((requestError) => toast.error(requestError.message))
-  }, [credentials, user])
+  const {
+    items: sortedUsers,
+    page,
+    totalPages,
+    loading,
+    loadingMore,
+    loadMore,
+    goToPage,
+    refresh,
+  } = useLazyPage(
+    async (nextPage, size) => {
+      try {
+        const response = await api(`/users?${pageQuery(nextPage, size, sort)}`, { auth: credentials })
+        return response.data
+      } catch (requestError) {
+        toast.error(requestError.message)
+        throw requestError
+      }
+    },
+    [credentials, sort.key, sort.direction, toast],
+    user?.role === 'ADMIN' || user?.role === 'SUPPORT',
+  )
 
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
   }
-
-  const sortedUsers = useMemo(
-    () =>
-      sortRows(users, {
-        ...sort,
-        key: (person) => {
-          if (sort.key === 'name') return `${person.firstName} ${person.lastName}`
-          if (sort.key === 'role') return ROLE_LABELS[person.role]
-          if (sort.key === 'status') return USER_STATUS_LABELS[person.status]
-          return person[sort.key]
-        },
-      }),
-    [users, sort],
-  )
 
   function changeSort(key, type) {
     setSort((current) => nextSort(current, key, type))
@@ -68,7 +66,7 @@ export default function UsersPage() {
   async function run(action, success) {
     try {
       await action()
-      await load()
+      await refresh()
       if (success) {
         toast.success(success)
       }
@@ -87,8 +85,80 @@ export default function UsersPage() {
         <h1 className="h3 mb-0">Потребители</h1>
         {isAdmin && <Button onClick={() => setShowCreate(true)}>Нов потребител</Button>}
       </div>
-      <div className="bg-white border rounded">
-        <Table responsive className="mb-0 align-middle">
+      <MobileSort
+        sort={sort}
+        onSort={changeSort}
+        options={[
+          { key: 'name', label: 'Име', type: 'text' },
+          { key: 'email', label: 'Имейл', type: 'text' },
+          { key: 'role', label: 'Роля', type: 'text' },
+          { key: 'department', label: 'Отдел', type: 'text' },
+          { key: 'status', label: 'Статус', type: 'text' },
+          { key: 'createdAt', label: 'Създаден', type: 'date' },
+        ]}
+      />
+
+      <div className="only-mobile record-list">
+        {sortedUsers.map((person) => (
+          <article key={person.id} className="record-card">
+            <div className="record-card-top">
+              <strong>
+                {person.firstName} {person.lastName}
+              </strong>
+              <Badge bg={statusBadge(person.status)}>{USER_STATUS_LABELS[person.status]}</Badge>
+            </div>
+            <div className="record-meta">
+              <div>
+                <span>Имейл</span>
+                {person.email}
+              </div>
+              <div>
+                <span>Роля</span>
+                {ROLE_LABELS[person.role]}
+              </div>
+              <div>
+                <span>Отдел</span>
+                {person.department}
+              </div>
+              <div>
+                <span>Създаден</span>
+                {formatDate(person.createdAt)}
+              </div>
+            </div>
+            {isAdmin && (
+              <div className="row-actions">
+                <Button size="sm" variant="outline-primary" onClick={() => setEditing(person)}>
+                  Редакция
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline-secondary"
+                  onClick={() =>
+                    run(() =>
+                      api(`/users/${person.id}/status`, {
+                        method: 'PATCH',
+                        auth: credentials,
+                        body: { status: person.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' },
+                      }),
+                      'Статусът на потребителя е обновен.',
+                    )
+                  }
+                >
+                  {person.status === 'ACTIVE' ? 'Деактивирай' : 'Активирай'}
+                </Button>
+                {person.id !== user.id && (
+                  <Button size="sm" variant="outline-danger" onClick={() => setPersonToDelete(person)}>
+                    Изтрий
+                  </Button>
+                )}
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+
+      <div className="only-desktop bg-white border rounded">
+        <Table className="mb-0 align-middle">
           <thead>
             <tr>
               <SortHeader label="Име" column="name" sort={sort} onSort={changeSort} />
@@ -114,8 +184,9 @@ export default function UsersPage() {
                 </td>
                 <td>{formatDate(person.createdAt)}</td>
                 {isAdmin && (
-                  <td className="text-end">
-                    <Button size="sm" variant="outline-primary" className="me-2" onClick={() => setEditing(person)}>
+                  <td>
+                    <div className="row-actions">
+                    <Button size="sm" variant="outline-primary" onClick={() => setEditing(person)}>
                       Редакция
                     </Button>
                     <Button
@@ -134,6 +205,12 @@ export default function UsersPage() {
                     >
                       {person.status === 'ACTIVE' ? 'Деактивирай' : 'Активирай'}
                     </Button>
+                    {person.id !== user.id && (
+                      <Button size="sm" variant="outline-danger" onClick={() => setPersonToDelete(person)}>
+                        Изтрий
+                      </Button>
+                    )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -141,6 +218,42 @@ export default function UsersPage() {
           </tbody>
         </Table>
       </div>
+
+      <LazySentinel enabled={!loading && !loadingMore && page + 1 < totalPages} watch={page} onVisible={loadMore} />
+      {loadingMore && <p className="text-secondary text-center mb-0">Зареждане...</p>}
+      <Pager page={page} totalPages={totalPages} disabled={loading || loadingMore} onPage={goToPage} />
+
+      <Modal show={personToDelete !== null} onHide={() => setPersonToDelete(null)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Изтриване на потребител</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {personToDelete && (
+            <>
+              {personToDelete.firstName} {personToDelete.lastName} се изтрива заедно със заявките, които е създал, и с
+              коментарите му. Ако друга заявка е била възложена на него, тя остава и става отново отворена.
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setPersonToDelete(null)}>
+            Отказ
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              const person = personToDelete
+              setPersonToDelete(null)
+              run(
+                () => api(`/users/${person.id}`, { method: 'DELETE', auth: credentials }),
+                'Потребителят е изтрит.',
+              )
+            }}
+          >
+            Изтрий
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={showCreate} onHide={() => setShowCreate(false)} centered>
         <Form
