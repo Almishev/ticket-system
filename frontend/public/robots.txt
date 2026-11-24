@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Disallow: /tickets
+Disallow: /users
+Disallow: /categories
+Disallow: /companies
+Disallow: /login
+Disallow: /register
+Disallow: /auth
