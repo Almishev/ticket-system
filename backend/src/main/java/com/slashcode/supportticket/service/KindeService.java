@@ -50,13 +50,17 @@ public class KindeService {
 		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 	}
 
-	public String authorizationUrl(String state, String verifier, String loginHint, boolean register) {
+	public String authorizationUrl(String state, String verifier, String loginHint, boolean register, boolean mobile) {
+		return authorizationUrl(state, verifier, loginHint, register, redirectUri(mobile));
+	}
+
+	public String authorizationUrl(String state, String verifier, String loginHint, boolean register, String redirectUri) {
 		KindeProperties.Oauth2 oauth = properties.getOauth2();
 		String scope = oauth.getScopes().replace(',', ' ');
 		String url = trim(oauth.getDomain()) + "/oauth2/auth"
 				+ "?response_type=code"
 				+ "&client_id=" + encode(oauth.getClientId())
-				+ "&redirect_uri=" + encode(oauth.getRedirectUri())
+				+ "&redirect_uri=" + encode(redirectUri)
 				+ "&scope=" + encode(scope)
 				+ "&state=" + encode(state)
 				+ "&code_challenge=" + encode(challenge(verifier))
@@ -68,12 +72,49 @@ public class KindeService {
 		return url;
 	}
 
-	public String exchangeIdToken(String code, String verifier) {
+	public String redirectUri(boolean mobile) {
+		KindeProperties.Oauth2 oauth = properties.getOauth2();
+		if (mobile && oauth.getMobileRedirectUri() != null && !oauth.getMobileRedirectUri().isBlank()) {
+			return oauth.getMobileRedirectUri().trim();
+		}
+		return oauth.getRedirectUri();
+	}
+
+	public String defaultReturnBase() {
+		String scheme = properties.getOauth2().getMobileScheme();
+		if (scheme == null || scheme.isBlank()) {
+			scheme = "helpdesk";
+		}
+		return scheme.trim() + "://";
+	}
+
+	public boolean allowedReturnBase(String value) {
+		if (value == null || value.isBlank() || value.length() > 180 || value.indexOf(' ') >= 0 || value.indexOf('@') >= 0) {
+			return false;
+		}
+		String base = value.trim();
+		return base.startsWith(defaultReturnBase()) || base.startsWith("exp://") || base.startsWith("exps://")
+				|| base.startsWith("http://localhost:") || base.startsWith("http://127.0.0.1:");
+	}
+
+	public String appReturn(String base, String route) {
+		String prefix = allowedReturnBase(base) ? base.trim() : defaultReturnBase();
+		if (!prefix.endsWith("/")) {
+			prefix = prefix + "/";
+		}
+		return prefix + route;
+	}
+
+	public String exchangeIdToken(String code, String verifier, boolean mobile) {
+		return exchangeIdToken(code, verifier, redirectUri(mobile));
+	}
+
+	public String exchangeIdToken(String code, String verifier, String redirectUri) {
 		KindeProperties.Oauth2 oauth = properties.getOauth2();
 		MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
 		form.add("grant_type", "authorization_code");
 		form.add("code", code);
-		form.add("redirect_uri", oauth.getRedirectUri());
+		form.add("redirect_uri", redirectUri);
 		form.add("client_id", oauth.getClientId());
 		form.add("client_secret", oauth.getClientSecret());
 		form.add("code_verifier", verifier);

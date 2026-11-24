@@ -23,6 +23,8 @@ public class KindeProperties {
 		private String scopes = "openid,email,profile";
 		private String redirectUri;
 		private String frontendUrl;
+		private String mobileRedirectUri;
+		private String mobileScheme = "helpdesk";
 
 		public String getDomain() {
 			return domain;
@@ -70,6 +72,22 @@ public class KindeProperties {
 
 		public void setFrontendUrl(String frontendUrl) {
 			this.frontendUrl = frontendUrl;
+		}
+
+		public String getMobileRedirectUri() {
+			return mobileRedirectUri;
+		}
+
+		public void setMobileRedirectUri(String mobileRedirectUri) {
+			this.mobileRedirectUri = mobileRedirectUri;
+		}
+
+		public String getMobileScheme() {
+			return mobileScheme;
+		}
+
+		public void setMobileScheme(String mobileScheme) {
+			this.mobileScheme = mobileScheme;
 		}
 	}
 

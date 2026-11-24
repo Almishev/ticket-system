@@ -24,6 +24,7 @@ import com.slashcode.supportticket.respository.CommentRepository;
 import com.slashcode.supportticket.respository.TicketRepository;
 import com.slashcode.supportticket.respository.UserRepository;
 import com.slashcode.supportticket.response.PageResponse;
+import com.slashcode.supportticket.service.PushNotifier;
 import com.slashcode.supportticket.service.TicketAccess;
 import com.slashcode.supportticket.service.TicketService;
 import com.slashcode.supportticket.util.Paging;
@@ -37,16 +38,18 @@ public class TicketServiceImpl implements TicketService{
 	private final CommentRepository commentRepository;
 	private final TicketMapper ticketMapper;
 	private final TicketAccess ticketAccess;
+	private final PushNotifier pushNotifier;
 	
 	public TicketServiceImpl(TicketRepository ticketRepository, UserRepository userRepository,
 			CategoryRepository categoryRepository, CommentRepository commentRepository, TicketMapper ticketMapper,
-			TicketAccess ticketAccess) {
+			TicketAccess ticketAccess, PushNotifier pushNotifier) {
 		this.ticketRepository = ticketRepository;
 		this.userRepository = userRepository;
 		this.categoryRepository = categoryRepository;
 		this.commentRepository = commentRepository;
 		this.ticketMapper = ticketMapper;
 		this.ticketAccess = ticketAccess;
+		this.pushNotifier = pushNotifier;
 	}
 	
 	private User findUserOrThrow(Long id) {
@@ -88,6 +91,7 @@ public class TicketServiceImpl implements TicketService{
 		ticket.setCompany(user.getCompany());
 		ticket.setTicketNumber(generateTicketNumber(user.getCompany().getId()));
 		Ticket savedTicket = ticketRepository.save(ticket);
+		pushNotifier.ticketCreated(savedTicket, user);
 		return ticketMapper.toResponse(savedTicket);
 	}
 
@@ -172,6 +176,7 @@ public class TicketServiceImpl implements TicketService{
 		
 		ticket.setStatus(request.getStatus());
 		Ticket updatedTicket = ticketRepository.save(ticket);
+		pushNotifier.statusChanged(updatedTicket, ticketAccess.currentUser());
 		return ticketMapper.toResponse(updatedTicket);
 	}
 	
@@ -204,7 +209,7 @@ public class TicketServiceImpl implements TicketService{
 		}
 		
 		Ticket updatedTicket = ticketRepository.save(ticket);
-		
+		pushNotifier.ticketAssigned(updatedTicket, supportUser, ticketAccess.currentUser());
 		return ticketMapper.toResponse(updatedTicket);
 	}
 

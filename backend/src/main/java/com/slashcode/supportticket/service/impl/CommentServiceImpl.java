@@ -18,6 +18,7 @@ import com.slashcode.supportticket.respository.CommentRepository;
 import com.slashcode.supportticket.respository.TicketRepository;
 import com.slashcode.supportticket.respository.UserRepository;
 import com.slashcode.supportticket.service.CommentService;
+import com.slashcode.supportticket.service.PushNotifier;
 import com.slashcode.supportticket.service.TicketAccess;
 
 @Service
@@ -28,14 +29,17 @@ public class CommentServiceImpl implements CommentService{
 	private final CommentRepository commentRepository;
 	private final CommentMapper commentMapper;
 	private final TicketAccess ticketAccess;
+	private final PushNotifier pushNotifier;
 	
 	public CommentServiceImpl(TicketRepository ticketRepository, UserRepository userRepository,
-			CommentRepository commentRepository, CommentMapper commentMapper, TicketAccess ticketAccess) {
+			CommentRepository commentRepository, CommentMapper commentMapper, TicketAccess ticketAccess,
+			PushNotifier pushNotifier) {
 		this.ticketRepository = ticketRepository;
 		this.userRepository = userRepository;
 		this.commentRepository = commentRepository;
 		this.commentMapper = commentMapper;
 		this.ticketAccess = ticketAccess;
+		this.pushNotifier = pushNotifier;
 	}
 
 	private Ticket findTicketOrThrow(Long id) {
@@ -66,6 +70,7 @@ public class CommentServiceImpl implements CommentService{
 		
 		Comment comment = commentMapper.toEntity(request, ticket, user);
 		Comment savedComment = commentRepository.save(comment);
+		pushNotifier.commentAdded(ticket, savedComment, current);
 		return commentMapper.toResponse(savedComment);
 	}
 	

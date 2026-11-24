@@ -18,12 +18,15 @@ import com.slashcode.supportticket.enums.CompanyStatus;
 import com.slashcode.supportticket.enums.UserStatus;
 import com.slashcode.supportticket.model.User;
 import com.slashcode.supportticket.service.KindeService;
+import com.slashcode.supportticket.service.MobileAuthSessions;
 import com.slashcode.supportticket.service.KindeService.KindeProfile;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import com.slashcode.supportticket.dto.auth.MobileCodeRequest;
+import com.slashcode.supportticket.dto.auth.MobileLoginResponse;
 import com.slashcode.supportticket.dto.user.RegisterCompanyRequest;
 import com.slashcode.supportticket.dto.user.RegisterRequest;
 import com.slashcode.supportticket.dto.user.UserResponse;
@@ -42,28 +45,46 @@ public class AuthController {
 
 	private static final String STATE_COOKIE = "kinde_state";
 	private static final String VERIFIER_COOKIE = "kinde_verifier";
+	private static final String CLIENT_COOKIE = "kinde_client";
+	private static final String RETURN_COOKIE = "kinde_return";
 
 	private final UserRepository userRepository;
 	private final UserMapper userMapper;
 	private final CompanyService companyService;
 	private final KindeService kindeService;
+	private final MobileAuthSessions mobileAuthSessions;
 
 	public AuthController(UserRepository userRepository, UserMapper userMapper, CompanyService companyService,
-			KindeService kindeService) {
+			KindeService kindeService, MobileAuthSessions mobileAuthSessions) {
 		this.userRepository = userRepository;
 		this.userMapper = userMapper;
 		this.companyService = companyService;
 		this.kindeService = kindeService;
+		this.mobileAuthSessions = mobileAuthSessions;
 	}
 
 	@GetMapping("/kinde/login")
 	public void kindeLogin(@RequestParam(required = false) String email,
-			@RequestParam(required = false) String screen, HttpServletResponse response) throws java.io.IOException {
+			@RequestParam(required = false) String screen, @RequestParam(required = false) String client,
+			@RequestParam(required = false) String returnTo, HttpServletResponse response) throws java.io.IOException {
+		boolean mobile = "mobile".equals(client);
 		String state = kindeService.randomSecret();
 		String verifier = kindeService.randomSecret();
+		if (mobile) {
+			if (!kindeService.allowedReturnBase(returnTo)) {
+				response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+				return;
+			}
+			String redirectUri = returnTo.trim();
+			mobileAuthSessions.save(state, verifier, redirectUri);
+			response.sendRedirect(kindeService.authorizationUrl(state, verifier, email, "register".equals(screen), redirectUri));
+			return;
+		}
 		addCookie(response, STATE_COOKIE, state);
 		addCookie(response, VERIFIER_COOKIE, verifier);
-		response.sendRedirect(kindeService.authorizationUrl(state, verifier, email, "register".equals(screen)));
+		addCookie(response, CLIENT_COOKIE, "web");
+		clearCookie(response, RETURN_COOKIE);
+		response.sendRedirect(kindeService.authorizationUrl(state, verifier, email, "register".equals(screen), false));
 	}
 
 	@GetMapping("/kinde/callback")
@@ -72,36 +93,76 @@ public class AuthController {
 			@RequestParam(required = false) String state,
 			HttpServletRequest request,
 			HttpServletResponse response) throws java.io.IOException {
+		boolean mobile = "mobile".equals(cookie(request, CLIENT_COOKIE));
+		String returnBase = decode(cookie(request, RETURN_COOKIE));
 		String expectedState = cookie(request, STATE_COOKIE);
 		String verifier = cookie(request, VERIFIER_COOKIE);
 		clearCookie(response, STATE_COOKIE);
 		clearCookie(response, VERIFIER_COOKIE);
+		clearCookie(response, CLIENT_COOKIE);
+		clearCookie(response, RETURN_COOKIE);
 		if (code == null || code.isBlank() || !same(state, expectedState) || verifier == null) {
-			response.sendRedirect(kindeService.frontendUrl() + "/login?error=state");
+			sendApp(response, mobile, returnBase, "/login?error=state", "login?error=state");
 			return;
 		}
 
 		String email;
 		String idToken;
 		try {
-			idToken = kindeService.exchangeIdToken(code, verifier);
+			idToken = kindeService.exchangeIdToken(code, verifier, mobile);
 			email = kindeService.emailFromIdToken(idToken);
 		} catch (RuntimeException exception) {
-			response.sendRedirect(kindeService.frontendUrl() + "/login?error=state");
+			sendApp(response, mobile, returnBase, "/login?error=state", "login?error=state");
 			return;
 		}
 
 		User user = userRepository.findByEmailWithCompany(email).orElse(null);
+		String token = java.net.URLEncoder.encode(idToken, java.nio.charset.StandardCharsets.UTF_8);
 		if (user == null) {
-			response.sendRedirect(kindeService.frontendUrl() + "/register#token=" + idToken);
+			sendApp(response, mobile, returnBase, "/register#token=" + token, "register?token=" + token);
 			return;
 		}
 		boolean companyBlocked = user.getCompany() != null && user.getCompany().getStatus() != CompanyStatus.ACTIVE;
 		if (user.getStatus() != UserStatus.ACTIVE || companyBlocked) {
-			response.sendRedirect(kindeService.frontendUrl() + "/login?error=blocked");
+			sendApp(response, mobile, returnBase, "/login?error=blocked", "login?error=blocked");
 			return;
 		}
-		response.sendRedirect(kindeService.frontendUrl() + "/auth/callback#token=" + idToken);
+		sendApp(response, mobile, returnBase, "/auth/callback#token=" + token, "auth?token=" + token);
+	}
+
+	private void sendApp(HttpServletResponse response, boolean mobile, String returnBase, String webPath, String mobilePath)
+			throws java.io.IOException {
+		if (mobile) {
+			response.sendRedirect(kindeService.appReturn(returnBase, mobilePath));
+			return;
+		}
+		response.sendRedirect(kindeService.frontendUrl() + webPath);
+	}
+
+	@PostMapping("/kinde/mobile/exchange")
+	public ResponseEntity<ApiResponse<MobileLoginResponse>> exchangeMobile(@Valid @RequestBody MobileCodeRequest request) {
+		MobileLoginResponse body = mobileAuthSessions.complete(request.getState(), request.getCode(),
+				(code, verifier, redirectUri) -> loginResult(kindeService.exchangeIdToken(code, verifier, redirectUri)));
+		return ResponseUtils.getResponse(HttpStatus.OK, "Login completed", body);
+	}
+
+	private MobileLoginResponse loginResult(String idToken) {
+		User user = userRepository.findByEmailWithCompany(kindeService.emailFromIdToken(idToken)).orElse(null);
+		MobileLoginResponse body = new MobileLoginResponse();
+		if (user == null) {
+			body.setScreen("register");
+			body.setToken(idToken);
+			return body;
+		}
+		boolean companyBlocked = user.getCompany() != null && user.getCompany().getStatus() != CompanyStatus.ACTIVE;
+		if (user.getStatus() != UserStatus.ACTIVE || companyBlocked) {
+			body.setScreen("login");
+			body.setError("blocked");
+			return body;
+		}
+		body.setScreen("auth");
+		body.setToken(idToken);
+		return body;
 	}
 
 	@PostMapping("/register/company")
@@ -169,6 +230,13 @@ public class AuthController {
 			}
 		}
 		return null;
+	}
+
+	private static String decode(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return java.net.URLDecoder.decode(value, java.nio.charset.StandardCharsets.UTF_8);
 	}
 
 	private static boolean same(String left, String right) {
