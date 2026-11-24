@@ -11,6 +11,9 @@ public interface CompanyService {
 
 	UserResponse register(RegisterRequest request);
 
+	UserResponse registerCompany(String email, String firstName, String lastName, String companyName, String eik,
+			String activity);
+
 	List<CompanyResponse> getAllCompanies();
 
 	CompanyResponse updateStatus(Long id, UpdateCompanyStatusRequest request);

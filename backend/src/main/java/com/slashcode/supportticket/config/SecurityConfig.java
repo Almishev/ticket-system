@@ -19,9 +19,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
 	private final SecurityExceptionHandler securityExceptionHandler;
+	private final KindeJwtConverter kindeJwtConverter;
 	
-	public SecurityConfig(SecurityExceptionHandler securityExceptionHandler) {
+	public SecurityConfig(SecurityExceptionHandler securityExceptionHandler, KindeJwtConverter kindeJwtConverter) {
 		this.securityExceptionHandler = securityExceptionHandler;
+		this.kindeJwtConverter = kindeJwtConverter;
 	}
 
 	@Bean
@@ -30,8 +32,11 @@ public class SecurityConfig {
 		http
 			.csrf(AbstractHttpConfigurer::disable)
 			.cors(Customizer.withDefaults())
-			.httpBasic(basic -> basic.authenticationEntryPoint(securityExceptionHandler))
+			.httpBasic(AbstractHttpConfigurer::disable)
 			.formLogin(AbstractHttpConfigurer::disable)
+			.oauth2ResourceServer(oauth2 -> oauth2
+					.authenticationEntryPoint(securityExceptionHandler)
+					.jwt(jwt -> jwt.jwtAuthenticationConverter(kindeJwtConverter)))
 			
 			.sessionManagement(session ->
 					session.sessionCreationPolicy(

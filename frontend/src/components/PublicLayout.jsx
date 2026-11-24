@@ -20,7 +20,7 @@ export default function PublicLayout() {
               {user.role === 'SUPER_ADMIN' ? 'Фирми' : 'Заявки'}
             </NavLink>
           ) : (
-            <NavLink to="/login">Вход</NavLink>
+            <a href="/api/auth/kinde/login">Вход</a>
           )}
         </nav>
       </header>

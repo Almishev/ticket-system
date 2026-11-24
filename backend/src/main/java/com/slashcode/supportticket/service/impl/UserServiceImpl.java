@@ -24,6 +24,7 @@ import com.slashcode.supportticket.respository.CommentRepository;
 import com.slashcode.supportticket.respository.TicketRepository;
 import com.slashcode.supportticket.respository.UserRepository;
 import com.slashcode.supportticket.response.PageResponse;
+import com.slashcode.supportticket.service.KindeService;
 import com.slashcode.supportticket.service.TicketAccess;
 import com.slashcode.supportticket.service.UserService;
 import com.slashcode.supportticket.util.Paging;
@@ -37,15 +38,18 @@ public class UserServiceImpl implements UserService{
 	private final TicketRepository ticketRepository;
 	private final CommentRepository commentRepository;
 	private final TicketAccess ticketAccess;
+	private final KindeService kindeService;
 	
 	public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder,
-			TicketRepository ticketRepository, CommentRepository commentRepository, TicketAccess ticketAccess) {
+			TicketRepository ticketRepository, CommentRepository commentRepository, TicketAccess ticketAccess,
+			KindeService kindeService) {
 		this.userRepository = userRepository;
 		this.userMapper = userMapper;
 		this.passwordEncoder = passwordEncoder;
 		this.ticketRepository = ticketRepository;
 		this.commentRepository = commentRepository;
 		this.ticketAccess = ticketAccess;
+		this.kindeService = kindeService;
 	}
 	
 	private User findUserOrThrow(Long id) {
@@ -61,6 +65,7 @@ public class UserServiceImpl implements UserService{
 	
 
 	@Override
+	@Transactional
 	public UserResponse createUser(CreateUserRequest request) {
 		
 		if (request.getRole() == UserRole.SUPER_ADMIN) {
@@ -73,8 +78,11 @@ public class UserServiceImpl implements UserService{
 		
 		User user = userMapper.toEntity(request);
 		user.setCompany(company);
-		user.setPassword(passwordEncoder.encode(request.getPassword()));
+		user.setEmail(request.getEmail().trim());
+		String passwordHash = passwordEncoder.encode(request.getPassword());
+		user.setPassword(passwordHash);
 		User savedUser = userRepository.save(user);
+		kindeService.createUser(savedUser.getEmail(), savedUser.getFirstName(), savedUser.getLastName(), passwordHash);
 		return userMapper.toResponse(savedUser);
 	}
 

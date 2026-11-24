@@ -6,6 +6,7 @@ import PublicLayout from './components/PublicLayout'
 import CategoriesPage from './pages/CategoriesPage'
 import CompaniesPage from './pages/CompaniesPage'
 import HomePage from './pages/HomePage'
+import AuthCallbackPage from './pages/AuthCallbackPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import TicketPage from './pages/TicketPage'
@@ -32,6 +33,7 @@ export default function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/register" element={<RegisterPage />} />
           </Route>
           <Route element={<RequireAuth />}>

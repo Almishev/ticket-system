@@ -1,18 +1,32 @@
-import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import Button from 'react-bootstrap/Button'
 import Card from 'react-bootstrap/Card'
-import Form from 'react-bootstrap/Form'
 import { useAuth } from '../auth'
 import { useToast } from '../toast'
 
+const ERRORS = {
+  missing: 'Този имейл го има в Kinde, но няма фирма в хелпдеска. Отвори Регистрация и използвай същия имейл.',
+  blocked: 'Фирмата е спряна или профилът не е активен.',
+  state: 'Входът беше прекъснат. Опитай отново.',
+}
+
 export default function LoginPage() {
-  const { user, ready, login } = useAuth()
+  const { user, ready } = useAuth()
   const toast = useToast()
-  const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [pending, setPending] = useState(false)
+  const [params] = useSearchParams()
+  const error = params.get('error')
+
+  useEffect(() => {
+    if (!ready || user) {
+      return
+    }
+    if (ERRORS[error]) {
+      toast.error(ERRORS[error])
+      return
+    }
+    window.location.replace('/api/auth/kinde/login')
+  }, [error, ready, toast, user])
 
   if (!ready) {
     return <div className="text-center text-secondary">Зареждане...</div>
@@ -22,50 +36,21 @@ export default function LoginPage() {
     return <Navigate to={user.role === 'SUPER_ADMIN' ? '/companies' : '/tickets'} replace />
   }
 
-  async function onSubmit(event) {
-    event.preventDefault()
-    setPending(true)
-    try {
-      const profile = await login(email, password)
-      navigate(profile.role === 'SUPER_ADMIN' ? '/companies' : '/tickets', { replace: true })
-    } catch (requestError) {
-      toast.error(requestError.status === 401 ? 'Грешен имейл или парола.' : requestError.message)
-    } finally {
-      setPending(false)
-    }
+  if (!ERRORS[error]) {
+    return <div className="text-center text-secondary">Отваряне на входа...</div>
   }
 
   return (
     <Card className="login-card shadow-sm">
       <Card.Body className="p-4">
-        <h1 className="h3 mb-4">Вход</h1>
-        <Form onSubmit={onSubmit}>
-          <Form.Group className="mb-3" controlId="email">
-            <Form.Label>Имейл</Form.Label>
-            <Form.Control
-              type="email"
-              value={email}
-              autoComplete="username"
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </Form.Group>
-          <Form.Group className="mb-4" controlId="password">
-            <Form.Label>Парола</Form.Label>
-            <Form.Control
-              type="password"
-              value={password}
-              autoComplete="current-password"
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </Form.Group>
-          <Button type="submit" className="w-100" disabled={pending}>
-            {pending ? 'Влизане...' : 'Вход'}
-          </Button>
-        </Form>
+        <h1 className="h3 mb-3">Вход</h1>
+        {ERRORS[error] && <p className="text-danger">{ERRORS[error]}</p>}
+        <p className="text-secondary">Входът продължава в Kinde с имейл и парола.</p>
+        <Button as="a" href="/api/auth/kinde/login" className="w-100">
+          Вход
+        </Button>
         <p className="mt-3 mb-0">
-          Нямаш профил? <Link to="/register">Регистрация</Link>
+          Нямаш профил? <a href="/api/auth/kinde/login?screen=register">Регистрация</a>
         </p>
       </Card.Body>
     </Card>

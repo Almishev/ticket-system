@@ -51,11 +51,11 @@ export function AuthProvider({ children }) {
       user,
       ready,
       credentials,
-      async login(email, password) {
-        const auth = { email: email.trim(), password }
-        const response = await api('/auth/me', { auth })
+      async acceptToken(token) {
+        const auth = { token }
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(auth))
         setCredentials(auth)
+        const response = await api('/auth/me', { auth })
         setUser(response.data)
         return response.data
       },
@@ -63,6 +63,8 @@ export function AuthProvider({ children }) {
         sessionStorage.removeItem(STORAGE_KEY)
         setCredentials(null)
         setUser(null)
+        const redirect = encodeURIComponent(window.location.origin)
+        window.location.assign(`https://studentsuniversityregister.kinde.com/logout?redirect=${redirect}`)
       },
     }),
     [user, ready, credentials],

@@ -1,12 +1,3 @@
-function basicAuth(email, password) {
-  const bytes = new TextEncoder().encode(`${email}:${password}`)
-  let binary = ''
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte)
-  })
-  return `Basic ${btoa(binary)}`
-}
-
 function errorMessage(payload) {
   if (!payload) {
     return 'Заявката не успя'
@@ -27,8 +18,8 @@ export async function api(path, { method = 'GET', body, auth } = {}) {
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
-  if (auth?.email) {
-    headers.Authorization = basicAuth(auth.email, auth.password)
+  if (auth?.token) {
+    headers.Authorization = `Bearer ${auth.token}`
   }
 
   const response = await fetch(`/api${path}`, {

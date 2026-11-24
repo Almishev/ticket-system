@@ -23,13 +23,13 @@ export default function HomePage() {
               {user.role === 'SUPER_ADMIN' ? 'Към фирмите' : 'Към заявките'}
             </Button>
           ) : (
-            <Button as={Link} to="/login">
+            <Button as="a" href="/api/auth/kinde/login">
               Вход
             </Button>
           )}
           {ready && !user && (
             <p className="hero-register mb-0">
-              Нямаш профил? <Link to="/register">Регистрация</Link>
+              Нямаш профил? <a href="/api/auth/kinde/login?screen=register">Регистрация</a>
             </p>
           )}
         </div>

@@ -45,6 +45,12 @@ public class GlobalExceptionHandler {
 		return ResponseUtils.getResponse(HttpStatus.NOT_FOUND, exception.getMessage(), null);
 	}
 
+	@ExceptionHandler(KindeException.class)
+	public ResponseEntity<ApiResponse<Void>> handleKindeException(KindeException exception) {
+		logger.error("Kinde request failed: {}", exception.getMessage());
+		return ResponseUtils.getResponse(HttpStatus.BAD_GATEWAY, exception.getMessage(), null);
+	}
+
 	@ExceptionHandler(ForbiddenException.class)
 	public ResponseEntity<ApiResponse<Void>> handleForbiddenException(ForbiddenException exception) {
 		return ResponseUtils.getResponse(HttpStatus.FORBIDDEN, exception.getMessage(), null);

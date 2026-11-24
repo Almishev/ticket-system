@@ -18,7 +18,7 @@ public interface UserRepository extends JpaRepository<User, Long>{
 
 	Optional<User> findByEmail(String email);
 
-	@Query("select u from User u left join fetch u.company where u.email = :email")
+	@Query("select u from User u left join fetch u.company where lower(u.email) = lower(:email)")
 	Optional<User> findByEmailWithCompany(@Param("email") String email);
 
 	List<User> findByCompanyId(Long companyId);
